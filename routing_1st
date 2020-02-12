@@ -1,1 +1,35 @@
-router>
+/*
+  Router 3 개를 가지고 서로 다른 네트워크 간의 통신이 가능하게 구성 하고자 한다.
+  Network1 host : 100 PCs
+  Network2 host : 50 PCs
+  Network3 host : 200 PCs
+  
+  Network 1. int f 0/0:210.100.1.0/25,    int s 0/0:210.100.1.193 DCE, clock rate 56000
+  Network 2. int f 0/0:210.100.1.128/26,  int s0/0:210.100.1.194 DTE, int s0/1:210.110.2.2 DTE
+  Network 3. int f 0/0:210.110.1.0/24,    int s0/0:210.110.2.1 DCE, clock rate 56000
+  Network 1-2. 210.100.1.192/30
+  Network 2-3. 210.110.2.0/24
+*/
+
+R1
+router>enable
+router#conf t
+router(config)#enable password cisco
+router(config-if)#line vty 0 4
+router(config-if)#login
+router(config-if)#password tel
+router(config-if)#exit
+router(config)#int f 0/0
+router(config-if)#ip addr 210.100.1.1 255.255.255.128
+router(config-if)#no shut
+router(config-if)#int s 0/0
+router(config-if)#ip addr 210.100.1.193 255.255.255.252
+router(config-if)#clock rate 56000
+router(config-if)#no shut
+router(config-if)#exit
+router(config)#ip route 210.100.1.128 255.255.255.192 210.100.1.194
+router(config)#ip route 210.110.2.0 255.255.255.0 210.100.1.194
+router(config)#ip route 210.110.1.0 255.255.255.0 210.100.1.194
+router(config)#exit
+router#copy r s
+
