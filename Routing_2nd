@@ -1,0 +1,65 @@
+/*
+ 기존의 VLSM 을 활용한 Static Routing 의 문제를 개선하기 위해 Dynamic Routing Protocol 을 채택 하여 적용한다.
+ Dynamic Routing Protocol 은 RIP, OSPF, EIGRP 등 이 있다.
+ 하지만, RIP, OSPF 의 경우 VLSM 이 적용 되지 않기 때문에 채택이 불가능 하여 EIGRP 로 구현 하고자 하였다.
+ 
+ 기존 작업의 상황 (Routing_1st) 의 설정을 그대로 가지고 이어서 작업을 하였다.
+*/
+<Routing_1st 의 내용을 copy r s 한 상태의 설정을 그대로 이어서 사용한다.>
+
+R1
+Router>en
+password : cisco
+Router#sh run
+Router#conf t
+Router(config)#no ip route 210.100.1.0 255.255.255.128 210.100.1.194
+Router(config)#no ip route 210.110.2.0 255.255.255.0 210.100.1.194
+Router(config)#no ip route 210.110.1.0 255.255.255.0 210.100.1.194
+Router(config)#router eigrp 1
+Router(config-router)#network 210.100.1.0 0.0.0.127
+Router(config-router)#network 210.100.1.192 0.0.0.3
+Router(config-router)#exit
+Router(config)#exit
+Router#copy r s
+
+
+R2
+Router>en
+password : cisco
+Router#sh run
+Router#conf t
+Router(config)#no ip route 210.100.1.0 255.255.255.128 210.100.1.193
+Router(config)#no ip route 210.110.1.0 255.255.255.0 210.110.2.1
+Router(config)#router eigrp 1
+Router(config-router)#network 210.100.1.128 0.0.0.63
+Router(config-router)#network 210.100.1.192 0.0.0.3
+Router(config-router)#network 210.110.2.0 0.0.0.255
+Router(config-router)#exit
+Router(config)#exit
+Router#copy r s
+
+
+R3
+Router>en
+password : cisco
+Router#sh run
+Router#conf t
+Router(config)#no ip route 210.100.1.128 255.255.255.192 210.110.2.2
+Router(config)#no ip route 210.100.1.192 255.255.255.252 210.110.2.2
+Router(config)#no ip route 210.100.1.0 255.255.255.128 210.110.2.2
+Router(config)#router eigrp 1
+Router(config-router)#network 210.110.1.0 0.0.0.255
+Router(config-router)#network 210.110.2.0 0.0.0.255
+Router(config-router)#exit
+Router(config)#exit
+Router#copy r s
+
+
+/*
+  EIGRP 는 Cisco 의 전용 프로토콜 이다. 그렇기 때문에 Cisco 장비 끼리만 통신이 가능 하다는 점을 유의 해야하고,
+  Dynamic Routing Protocol 로 전환한 덕분에, 앞으로 라우터를 1대 추가 하더라도, 그 라우터 1대에만 설정을
+  적용 하면 자연스럽게 네트워크가 연결이 될 것이다.
+  
+  하지만, 라우터만 가지고 만드는 네트워크는 너무나도 비효율 적이기 때문에, 다음 작업 부터는 Switch 를 사용 하여,
+  네트워크를 구성해 보고자 한다.
+*/
