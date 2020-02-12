@@ -16,8 +16,8 @@ router>enable
 router#conf t
 router(config)#enable password cisco
 router(config-if)#line vty 0 4
-router(config-if)#login
 router(config-if)#password tel
+router(config-if)#login
 router(config-if)#exit
 router(config)#int f 0/0
 router(config-if)#ip addr 210.100.1.1 255.255.255.128
@@ -33,3 +33,69 @@ router(config)#ip route 210.110.1.0 255.255.255.0 210.100.1.194
 router(config)#exit
 router#copy r s
 
+R2
+router>enable
+router#conf t
+router(config)#enable password cisco
+router(config)#line vty 0 4
+router(config)#password tel
+router(config)#login
+router(config)#int f 0/0
+router(config-if)#ip addr 210.100.1.129 255.255.255.192
+router(config-if)#no shut
+router(config-if)#int s 0/0
+router(config-if)#ip addr 210.100.1.194 255.255.255.252
+router(config-if)#no shut
+router(config-if)#int s 0/1
+router(config-if)#ip addr 210.110.2.2 255.255.255.0
+router(config-if)#no shut
+router(config-if)#exit
+router(config)#ip route 210.100.1.0 255.255.255.128 210.100.1.193
+router(config)#ip route 210.110.1.0 255.255.255.0 210.110.2.1
+router(config)#exit
+router#copy r s
+
+R3
+router>enable
+router#conf t
+router(config)#enable password cisco
+router(config-if)#line vty 0 4
+router(config-if)#password tel
+router(config-if)#login
+router(config-if)#exit
+router(config)#int f 0/0
+router(config-if)#ip addr 210.110.1.1 255.255.255.0
+router(config-if)#no shut
+router(config-if)#int s 0/0
+router(config-if)#ip addr 210.110.2.1 255.255.255.0
+router(config-if)#clock rate 56000
+router(config-if)#no shut
+router(config-if)#exit
+router(config)#ip route 210.100.1.128 255.255.255.192 210.110.2.2
+router(config)#ip route 210.110.1.192 255.255.255.252 210.110.2.2
+router(config)#ip route 210.110.1.0 255.255.255.128 210.110.2.2
+router(config)#exit
+router#copy r s
+
+/*
+  작업과정에서 생긴 문제점
+  Router1->Router2 : Ping Success
+  Router2->Router3 : Ping Success
+  Router1->Router3 : Ping Failed
+  -> 여기서 먼저 sh run 을 통해 static routing 계산을 잘 못 했는지 확인을 하였으나 잘못 된 것을 확인 하지 못함.
+  
+  router#sh ip route
+  -> 각 라우터의 라우팅 테이블을 확인하여 Static 연결이 정상적으로 이루어 졌는지 확인하였으나, 정상적이 었음.
+  
+  router#sh int ip bri
+  -> 각 라우터에서 확인 결과 f 0/0 port 의 상태가 up / down 상태 인 것을 확인하고, sh run 을 통해 해당 포트가 
+  no shut 상태인지 확인 하였으나 정상 이었음..
+  -> 하지만 회선을 확인 해보니 Cross Cable 이 아닌 Straight Cable 로 교체 하고 나니 정상적으로 작동하는 것을 확인 함.
+ 
+ 
+ 개선 방향
+  라우터를 3대만 사용 해도 관리자가 계산해야 하는 IP의 양이나 ip route 설정이 번거로움을 알 수 있었고, 이는 
+ 라우터의 수를 1개 늘릴 때마다 업무량의 증가를 추측이 가능 했다.
+  그렇기 때문에 Static Routing Protocol 이 아닌 Dynamic Routing Protocol 의 사용이 필요 함을 느꼈다.
+  
+*/
