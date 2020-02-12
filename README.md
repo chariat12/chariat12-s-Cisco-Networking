@@ -6,6 +6,7 @@ router_1st 부터 시작하는 파일의 내용은 실제로 입력했던 내용
 
 작업 파일 내용의 간략한 설명.
 
-router_1st : VLSM 을 적용한 Static Routing Network 를 구성 해보고 통신을 적용해 보았다.
-router_2nd : Static Routing 의 단점을 개선하기 위해 Dynamic Routing Protocol인 EIGRP 를 사용하여 네트워크를 구성해 보았다.
+ router_1st : VLSM 을 적용한 Static Routing Network 를 구성 해보고 통신을 적용해 보았다.
+
+ router_2nd : Static Routing 의 단점을 개선하기 위해 Dynamic Routing Protocol인 EIGRP 를 사용하여 네트워크를 구성해 보았다.
 
