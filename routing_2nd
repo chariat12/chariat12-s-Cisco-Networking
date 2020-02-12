@@ -1,11 +1,22 @@
 /*
+  Router 3 개를 가지고 서로 다른 네트워크 간의 통신이 가능하게 구성 하고자 한다.
+  Network1 host : 100 PCs
+  Network2 host : 50 PCs
+  Network3 host : 200 PCs
+  
+  Network 1. int f 0/0:210.100.1.0/25,    int s 0/0:210.100.1.193 DCE, clock rate 56000
+  Network 2. int f 0/0:210.100.1.128/26,  int s0/0:210.100.1.194 DTE, int s0/1:210.110.2.2 DTE
+  Network 3. int f 0/0:210.110.1.0/24,    int s0/0:210.110.2.1 DCE, clock rate 56000
+  Network 1-2. 210.100.1.192/30
+  Network 2-3. 210.110.2.0/24
+
+
  기존의 VLSM 을 활용한 Static Routing 의 문제를 개선하기 위해 Dynamic Routing Protocol 을 채택 하여 적용한다.
  Dynamic Routing Protocol 은 RIP, OSPF, EIGRP 등 이 있다.
  하지만, RIP, OSPF 의 경우 VLSM 이 적용 되지 않기 때문에 채택이 불가능 하여 EIGRP 로 구현 하고자 하였다.
  
  기존 작업의 상황 (Routing_1st) 의 설정을 그대로 가지고 이어서 작업을 하였다.
 */
-<Routing_1st 의 내용을 copy r s 한 상태의 설정을 그대로 이어서 사용한다.>
 
 R1
 Router>en
