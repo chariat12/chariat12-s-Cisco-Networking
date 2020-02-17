@@ -136,4 +136,9 @@
  R2 : group 20 active, group 10 active <- VLAN 10, VLAN 20 패킷이 둘다 지나 가서, 폴트 톨러런트(fault tolerant)대책도 세워진 결과를 얻는다.
  
  이 작업을 통해 알게 된 사실은, InterVLAN 을 적용 했다면, HSRP 가 적용 되는 네트워크 장비 일 경우 충분히 고려할만한 가치가있다고 생각된다.
+ 
+ 
+ 참조 링크
+ simple HSRP - inter vlan routing with external router (subinterface):
+ http://journey2ccie.blogspot.com/2010/02/simple-hsrp-inter-vlan-routing-with.html
  */
