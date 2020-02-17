@@ -1,0 +1,137 @@
+/*
+  Network1 host : 100 PCs
+  Network2 host : 50 PCs
+  Network3 host : 200 PCs
+  
+  Network 1. Vlan 10, 210.100.1.1 255.255.255.128,  int s 0/0:210.110.2.2 DCE. clock rate 56000
+  Network 2. Vlan 20, 210.100.1.129 255.255.255.192
+  Network 3. int f 0/0: 210.110.1.0 255.255.255.0,  int s 0/0:210.110.2.1 DTE
+  Network (1-2)-3. 210.100.2.0 255.255.255.0
+  
+  //routing_4th
+  
+  기존의 네트워크 구성에서 라우터에 HSRP 을 적용 시키는 작업을 한다.
+  HSRP 를 단순히 사용을 하면 (ex:vlan 1 만 사용하는 하나의 네트워크 만 사용) 라우터의 다중화 를 사용은 가능 하지만, 그 이상의 효과를 보기가 힘들 것이라 생각한다.
+  하지만, InterVLAN을 접목 시키면, HSRP를 통한 라우터의 다중화를 포함 하여, HSRP 그룹에 맞춰서 로드밸런싱 을 시도 할 수 가 있다.
+  
+  구성은 다음과 같다.
+  
+  Network1
+  -R1 HSRP : 
+  | int f 0/0.10 210.100.1.2 255.255.255.128, standby 10 ip 210.100.1.1, standby 10 priority 110, standby 10 preempt
+  | int f 0/0.20 210.100.1.130 255.255.255.192, standby 20 ip 210.100.1.129, standby 20 preempt
+  -R2 HSRP :
+  | int f 0/0.10 210.100.1.3 255.255.255.128, standby 10 ip 210.100.1.1, standby 10 preempt
+  | int f 0/0.20 210.100.1.131 255.255.255.192, standby 20 ip 210.100.1.129, standby 20 priority 110, standby 20 preempt
+  
+  -S1
+  | VLAN 20 : 210.100.1.132 255.255.255.192
+  | default-gateway 210.100.1.129
+  
+  -S2
+  | VLAN 10 : 210.100.1.4 255.255.255.128
+  | default-gateway 210.100.1.1
+  | switch Trunk mode f 0/23 ( on R2 ), f 0/24 ( on R1 )
+  
+  Network2
+  -R3
+  | f 0/0 210.110.1.1 255.255.255.0
+  | s 0/0 210.110.2.1 255.255.255.252 // 기존 210.110.2.0 255.255.255.0 은 s 0/0, s 0/1 의 네트워크 구분이 안가므로 서브넷팅 하였다.
+  | s 0/1 210.110.2.5 255.255.255.252
+  -S3
+  | 설정 안함
+ */
+ 
+ // routing_3rd 의 상태에서 이어진다.
+ R1#conf t
+ // HSRP 를 적용 하기 위해 IP 정보를 수정 하는 과정
+ R1(config)#int f 0/0.10
+ R1(config-subif)#encapsulation dot1Q 10
+ R1(config-subif)#ip address 210.100.1.2 255.255.255.128 // 실제 입력되어 있는 ip
+ R1(config-subif)#standby 10 ip 210.100.1.1 // 가상 게이트 웨이 (Client 가 실제로 입력하는 gateway address)
+ R1(config-subif)#standby 10 priority 110 // 우선순위는 기본이 100 이고, 높은 숫자 일 경우, 우선적으로 active gateway가 된다.
+ R1(config-subif)#standby 10 preempt // active 라우터가 죽고 나서 복구 되었을 경우 몇 초 후에 복구 되는가?, R2와 값이 똑같아야 한다.
+ R1(config-subif)#int f 0/0.20
+ R1(config-subif)#encapsulation dot1Q 20
+ R1(config-subif)#ip address 210.100.1.130 255.255.255.192
+ R1(config-subif)#standby 20 ip 210.100.1.129
+ //R1(config-subif)#standby 20 priority 100// 입력하지 않았으므로 default 100 이 적용 되어있다.
+ R1(config-subif)#standby 20 preempt
+ R1(config-subif)#exit
+ R1(config)#router eigrp 100
+ // 기존의 serial 광고 정보를 지우고 새로운 정보로 갱신한다.
+ R1(config-router)#no network 210.110.2.0
+ R1(config-router)#network 210.110.2.0 0.0.0.3
+ R1(config-router)#end
+ R1#copy r s
+ 
+ 
+ R2#conf t
+ R2(config)#int s 0/1
+ R2(config-if)#ip address 210.110.2.6 255.255.255.252
+ R2(config-if)#no shut
+ R2(config)#int f 0/0.10
+ R2(config-subif)#encapsulation dot1Q 10
+ R2(config-subif)#ip address 210.100.1.3 255.255.255.128
+ R2(config-subif)#standby 10 ip 210.100.1.1
+ R2(config-subif)#standby 10 preempt
+ R2(config-subif)#int f 0/0.20
+ R2(config-subif)#encapsulation dot1Q 20
+ R2(config-subif)#ip address 210.100.1.131 255.255.255.192
+ R2(config-subif)#standby 20 ip 210.100.1.129
+ R2(config-subif)#standby 20 priority 110
+ R2(config-subif)#standby 20 preempt
+ R2(config-subif)#exit
+ // 새 라우터의 ip 정보를 eigrp 프로토콜을 사용하여 광고한다.
+ R2(config)#router eigrp 100
+ R2(config-router)#network 210.110.2.4 0.0.0.3
+ R2(config-router)#network 210.100.1.0 255.255.255.128
+ R2(config-router)#network 210.100.1.128 255.255.255.192
+ R2(config-router)#end
+ R2#copy r s
+ 
+ 
+ S1>en
+ S1#conf t
+ S1(config)#int vlan 20
+ S1(config-if)#ip address 210.100.1.132 255.255.255.192
+ S1(config-if)#exit
+ S1(config)#ip default-gateway 210.100.1.129
+ S1(config)#end
+ S1#copy r s
+ 
+ 
+ S2>en
+ S2#conf t
+ S2(config)#int vlan 10
+ S2(config-if)#ip address 210.100.1.4 255.255.255.128
+ S2(config-if)#exit
+ S2(config)#ip default-gateway 210.100.1.1
+ // HSRP 로 새로 연결된 R2 를 trunk 로 연결하여 interVLAN 을 적용한다.
+ S2(config)#int f 0/23
+ S2(config-if)#switchport mode trunk
+ S2(config-if)#end
+ S2#copy r s
+ 
+ 
+ 
+ /* 소스 해설
+  R1과 R2 는 둘다 encapsulation dot1q 를 적용을 반드시 해야 한다.
+  R1 의 경우 f 0/0.10 은 HSRP Active를 주기위해 standby 10 priority 110을 주고, f0/0.20 은 기본값으로 설정한다 (100)
+  R2 는 R1과 반대로 f0/0.20 은 110, f0/0.10 은 기본값으로 설정했다.
+  
+  이로 인해 다음과 같은 효과를 얻을 수 있다.
+  
+  VLAN 10에 해당하는 패킷은 R1 을 통해 데이터가 전송이 되며, VLAN 20에 해당하는 패킷은 R2 를 통해 데이터가 전송이 된다.
+  -> 그이유는, group 10 active 이기 때문에 VLAN 10 데이터는 R1 으로 가지만, group 20 standby 상태이기 때문에 우선순위가 높은 R2 로 가게 된다.
+  
+  R1 : group 10 active, group 20 standby <- VLAN 10 패킷이 우선으로 지나가는 라우터
+  R2 : group 20 active, group 10 standby <- VLAN 20 패킷이 우선으로 지나가는 라우터
+ 
+ 고로, 부하 분산이 정상적으로 이루어져, 로드 밸런싱이 이루어 진다고 볼 수 있다.
+ 만약 R1 이 고장 난다 하더라도 다음과 같은 상태가 된다.
+ R1 : shut down
+ R2 : group 20 active, group 10 active <- VLAN 10, VLAN 20 패킷이 둘다 지나 가서, 폴트 톨러런트(fault tolerant)대책도 세워진 결과를 얻는다.
+ 
+ 이 작업을 통해 알게 된 사실은, InterVLAN 을 적용 했다면, HSRP 가 적용 되는 네트워크 장비 일 경우 충분히 고려할만한 가치가있다고 생각된다.
+ */
