@@ -1,0 +1,135 @@
+/*
+  Router 3 개를 가지고 서로 다른 네트워크 간의 통신이 가능하게 구성 하고자 한다.
+  Network1 host : 100 PCs
+  Network2 host : 50 PCs
+  Network3 host : 200 PCs
+  
+  Network 1. int f 0/0:210.100.1.0/25,    int s 0/0:210.100.1.193 DCE, clock rate 56000
+  Network 2. int f 0/0:210.100.1.128/26,  int s0/0:210.100.1.194 DTE, int s0/1:210.110.2.2 DTE
+  Network 3. int f 0/0:210.110.1.0/24,    int s0/0:210.110.2.1 DCE, clock rate 56000
+  Network 2-3. 210.110.2.0/24
+
+   Network 1-2. 210.100.1.192/30 // 필요가 없게 됨.
+
+  //routing_2nd
+ 기존의 VLSM 을 활용한 Static Routing 의 문제를 개선하기 위해 Dynamic Routing Protocol 을 채택 하여 적용한다.
+ Dynamic Routing Protocol 은 RIP, OSPF, EIGRP 등 이 있다.
+ 하지만, RIP, OSPF 의 경우 VLSM 이 적용 되지 않기 때문에 채택이 불가능 하여 EIGRP 로 구현 하고자 하였다.
+ 
+ //routing_3rd
+  실제 네트워크에서 비싼 고가의 라우터만 가지고 이루어진 네트워크는 비효율 적이다.
+  그렇기 때문에 스위치를 이용하여 네트워크를 구축 하고자 한다.
+  사용 하려는 기법은, VLAN 을 적용 하여 네트워크간 구분을 하였고, InterVLAN 을 적용 시켜 서로 다른 VLAN 끼리의 통신이 안되었던 점을 통신이 되게 하였다.
+  그리하여 기존 라우터 3대 -> 라우터 2대 + 스위치 2대로 구성을 변경 하였으며, 신규 구성은 다음과 같다.
+  
+  Network1 host : 100 PCs
+  Network2 host : 50PCs
+  Network3 host : 200 PCs
+  
+  Network 1. Vlan 10, 210.100.1.1 255.255.255.128,  int s 0/0:210.110.2.2 DCE. clock rate 56000
+  Network 2. Vlan 20, 210.100.1.129 255.255.255.192
+  Network 3. int f 0/0: 210.110.1.0 255.255.255.0,  int s 0/0:210.110.2.1 DTE
+  Network (1-2)-3. 210.100.2.0 255.255.255.0
+ */
+ 
+ R1>en
+ R1#sh run
+ R1#conf t
+ R1(config)#int s 0/0
+ R1(config-if)#ip address 210.110.2.2 255.255.255.0
+ R1(config-if)#no shut
+ R1(config-if)#clock rate 56000
+ R1(config-if)#int f 0/0
+ R1(config-if)#no shut
+ R1(config-if)#int f 0/0.10
+ R1(config-if)#encapsulation dot1Q 10
+ R1(config-if)#ip address 210.100.1.1 255.255.255.128
+ R1(config-if)#int f 0/0.20
+ R1(config-if)#encapsulation dot1Q 20
+ R1(config-if)#ip address 210.100.1.129 255.255.255.192
+ R1(config-if)#exit
+ R1(config)#router eigrp 100
+ R1(config-router)#network 210.100.1.0 0.0.0.127
+ R1(config-router)#network 210.100.1.128 0.0.0.63
+ R1(config-router)#network 210.110.2.0 0.0.0.255
+ R1(config-router)#end
+ R1#copy r s
+ 
+ 
+ R2>en
+ R2#sh run
+ R2#conf t
+ R2(config)#int s 0/0
+ R2(config-if)#ip address 210.110.2.1 255.255.255.0
+ R2(config-if)#no shut
+ R2(config-if)#int f 0/0
+ R2(config-if)#ip address 210.110.1.1 255.255.255.0
+ R2(config-if)#no shut
+ R2(config-if)#exit
+ R2(config)#router eigrp 100
+ R2(config-router)#network 210.110.1.0
+ R2(config-router)#network 210.110.2.0
+ R2(config-router)#end
+ R2#copy r s
+ 
+ 
+ S0>en
+ S0#conf t
+ S0(config)#vlan 20
+ S0(config-vlan)#name haha
+ S0(config-vlan)#vlan 20
+ S0(config-vlan)#name dul
+ S0(config-vlan)#exit
+ S0(config)#int vlan 10
+ S0(config-if)#ip address 210.100.1.2 255.255.255.128
+ S0(config-if)#exit
+ S0(config)#ip default-gateway 210.100.1.1
+ S0(config)#int f 0/1
+ S0(config-if)#switch mode trunk
+ S0(config-if)#switchport trunk allowed vlan 10,20
+ S0(config-if)#int f 0/2
+ S0(config-if)#switch mode access
+ S0(config-if)#switch access vlan 10
+ S0(config-if)#end
+ S0#copy r s
+ 
+ 
+ S1>en
+ S1#conf t
+ S1(config)#vlan 10
+ S1(config-vlan)#name haha
+ S1(config-vlan)#vlan 20
+ S1(config-vlan)#name dul
+ S1(config-vlan)#exit
+ S1(config-if)#ip address 210.100.1.130 255.255.255.192
+ S1(config-if)#exit
+ S1(config)#ip default-gateway 210.100.1.129
+ S1(config)#int f 0/1
+ S1(config-if)#switch mode trunk
+ S1(config-if)#switchport trunk allowed vlan 10,20
+ S1(config-if)#int f 0/2
+ S1(config-if)#switch mode access
+ S1(config-if)#switch access vlan 20
+ S1(config-if)#int f 0/24
+ S1(config-if)#switch mode trunk
+ S1(config-if)#end
+ S1#copy r s
+ 
+ 
+ /* 
+    라우터와 스위치를 적절하게 활용 하여 InterVlan을 구축 하였으며, 실제 작동 여부까지 확인을 해보았다.
+    하지만, 문제점은 여전히 있다.
+    별첨이 되어있는 router_3rd_topology 그림파일을 확인 한다면, 네트워크 1,2 를 묶은 라우터가 하나 작동을 멈추게 된다면
+    네트워크 (1-2)-3 의 통신은 물론, interVLAN 을 적용한 네트워크 그룹끼리의 통신도 안되게 된다. (encapsulation 이 라우터를 통해 작동되므로)
+    그렇기 떄문에 별도의 대비가 필요 한 것으로 보인다.
+    
+    기존 네트워크 대비 장점 :
+    가격이 저렴해지고 적재적소에 맞는 장비를 사용하였으며, Vlan을 통해 서로 다른 네트워크 의 IP를 사용 한다 하더라도 위치에 따른 제약이 사라졌다.
+    (네트워크 2의 IP를 네트워크 1이 있는 컴퓨터 들 사이에서 사용해도, 해당 포트만 네트워크2의 Vlan 으로 설정해 두면, 네트워크 2인 것처럼 사용 가능)
+    
+    기존 네트워크 대비 단점 :
+    위에 설명 한 것 처럼, 라우터 하나가 작동이 망가질 경우, 3계층을 거쳐서 통신이 불가능 해져서, 내부 VLAN 끼리의 통신만 가능하게 된다.
+    (단, VLAN 10 - VLAN 20의 통신은 불가능 하다. 3계층 인 라우터를 거쳐 캡슐화가 성립이 되지 않기 때문)
+    
+ */   
+ 
