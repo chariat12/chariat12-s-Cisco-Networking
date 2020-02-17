@@ -137,6 +137,8 @@
  
  이 작업을 통해 알게 된 사실은, InterVLAN 을 적용 했다면, HSRP 가 적용 되는 네트워크 장비 일 경우 충분히 고려할만한 가치가있다고 생각된다.
  
+ 작업 환경
+ Packet Tracer 7.0
  
  참조 링크
  simple HSRP - inter vlan routing with external router (subinterface):
