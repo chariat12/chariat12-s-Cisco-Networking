@@ -1,0 +1,91 @@
+/*
+  routing_4th 까지의 작업에서 HSRP 와 InterVLAN 을 사용 하여, 로드밸런싱 과 폴트톨러먼트를 해결 하였다.
+  이부분은 라우터의 다중화 작업을 한 것이므로, 스위치 간의 폴트톨러먼트는 해결이 안 된 상태이다.
+  이를 해결하기 위해 STP 를 사용을 해야 하지만, Cisco 스위치에는 etherchannel 이 지원 한다.
+  etherchannel 은 여러 port 를 하나로 묶어서 하나의 회선이 down 되더라도 나머지 하나를 계속 해서 사용 할 수 있으며,
+  여러 회선은 마치 하나의 회선을 쓰는 것처럼 사용 된다.
+  
+  이번 작업에서는 etherchannel 을 적용 시켜 보고자 한다.
+  
+  S1
+  | f 0/1 on S2 -> f 0/1 on S1 + f 0/2 on S2
+  | f 0/2 ( Vlan 10, access ) -> trunk
+  | f 0/3 ( vlan 10, access )
+  S2
+  | f 0/1 on S2 -> f 0/1 on S1 + f 0/2 on S2
+  | f 0/2 ( Vlan 20, access ) -> trunk
+  | f 0/3 ( vlan 20, access )
+  
+  주의사항 : channel group 을 구성 하려면 다음과 같은 조건을 만족해야한다.
+  VLAN, Speed, Duplex, STP 의 설정 값이 모두 동일 할 것
+  EtherChannel Port 의 설정을 Trunk 로 하려면 Group 의 모든 Port 는 Trunk 여야만 한다.
+  Port-Security 가 설정되어 있으면 안된다.
+  Switch가 Fast Ethernet (100M), Giga Ethernet (1000M, 1G) 의 속도를 지원 해야한다. = (10M switch 는 지원하지 않음)
+*/
+
+  S1>en
+  S1#conf t
+  // 기존의 f 0/2 를 trunk 로 변경
+  S1(config)#int f 0/2
+  S1(config-if)#switchport mode trunk
+  // 신규로 연결한 f 0/3 을 access 로 변경하고 PC 에 연결
+  S1(config-if)#int f 0/3
+  S1(config-if)#switchport mode access
+  S1(config-if)#switchport access vlan 10
+  S1(config-if)#exit
+  // trunk로 이루어진 f 0/1-2 를 그룹으로 묶은후 etherchannel 을 작동 시킴
+  S1(config)#int range fastEthernet 0/1 - 2
+  S1(config-if-range)#channel-group 1 mode on
+  S1(config-if-range)#end
+  S1#copy r s
+  S1#sh etherchannel summary
+  
+  
+  S2>en
+  S2#conf t
+  S2(config)#int f 0/2
+  S2(config-if)#switchport mode trunk
+  S2(config-if)#int f 0/3
+  S2(config-if)#switchport mode access
+  S2(config-if)#switchport access vlan 10
+  S2(config-if)#exit
+  S2(config)#int range fastEthernet 0/1 - 2
+  S2(config-if-range)#channel-group 1 mode on
+  S2(config-if-range)#end
+  S2#copy r s
+  S2#sh etherchannel summary
+  
+ /*
+ 새로 입력된 코드의 양만 보면 실질적으로 새로 입력한 명령어는 channel-group 1 mode on 한 줄 이다.
+ 하지만, etherchannel 을 적용 한 것과 안한것의 차이는, STP 의 5단계 상태에서 Listening, Learning, Forwarding 의 과정에 소요 되는 시간이
+ 30초가 들어 가는 것을 감안 하면, 통신의 지속적 연결이 되느냐 안되느냐는 차이가 크다고 생각한다.
+ 즉, Cisco 장비로 이루어진 네트워크에서 Switch 간의 etherchannel 은 무조건 쓰는게 좋지 않나 라고 생각한다.
+ /*
+ 
+ /* 번외 EtherChannel mode
+ | LACP protocol ( 다른 한쪽을 Active 로 설정해야 활성화가 된다. )
+ | on=on & Active/Passive=Active
+ | on : channel member 를 강제로 구성한다.
+ | active : 적극적으로 channel 구성을 시도한다.
+ | passive : 소극적으로 channel 구성을 요구받을 때까지 기다린다.
+ | off : interface 를 etherChannel 로 구성하지 않는다.
+ S1(config)#int range f 0/1 - 2
+ S1(config-if-range)#channel-protocol lacp
+ 
+ S2(config)#int range f 0/1 - 2
+ S2(config-if-range)#channel-group 2 mode active
+ 
+ 
+ | PAgP protocol ( 다른 한쪽을 Desirable 로 설정해야 활성화가 된다. )
+ | on=on & Auto/Desirable=Desirable
+ | on : channel member 를 강제로 구성한다.
+ | Desirable : 적극적으로 channel 구성을 시도한다.
+ | Auto : 소극적으로 channel 구성을 요구받을 때까지 기다린다.
+ | off : interface 를 etherChannel 로 구성하지 않는다.
+ S1(config)#int range f 0/1 - 2
+ S1(config-if-range)#channel-protocol pagp
+ 
+ S2(config)#int range f 0/1 - 2
+ S2(config-if-range)#channel-group 2 mode disirable
+ */
+ 
