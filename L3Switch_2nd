@@ -1,0 +1,210 @@
+/*
+  L3 Switch 를 사용하여, VLAN 을 적용시킨 네트워크를 구축하고자 한다.
+  L2 Switch 로는 Backbone Switch 를 하나 사용했고, Backbone Switch 에서는 L3 Switch 와 L2 Switch 를 연결해주는 역할을 맡는다.
+  VLAN 그룹으로는 총 4개의 그룹(학생, 직원, 교수, 관리자)를 설정 하였다.
+  
+  네트워크의 설정은 다음과 같다.
+  VLAN 10 (Student)   : 1.1.10.0/24
+  VLAN 20 (Office)    : 1.1.20.0/24
+  VLAN 30 (Professor) : 1.1.30.0/24
+  VLAN 40 (Admin)     : 1.1.40.0/24
+  
+  L3 Switch
+  | SVI 10 : 1.1.10.254 (VLAN 10 Group 이 사용할 gateway-ip)
+  | SVI 20 : 1.1.20.254
+  | SVI 30 : 1.1.30.254
+  | SVI 40 : 1.1.40.254
+  
+  L3 Switch 와 backbone Switch를 제외한 L2 Switch 는 telnet 접속을 가능하게 설정 하였다.
+*/
+
+// L2 Switch config
+Switch1>en
+Switch#conf t
+Switch(config)#hostname 1F_SW
+// VLAN config
+1F_SW(config)#vlan 10
+1F_SW(config-vlan)#name Student
+1F_SW(config-vlan)#vlan 20
+1F_SW(config-vlan)#name Office
+1F_SW(config-vlan)#vlan 30
+1F_SW(config-vlan)#name Professor
+1F_SW(config-vlan)#vlan 40
+1F_SW(config-vlan)#name Admin
+// IP config & telnet setup
+1F_SW(config-vlan)#int vlan 40
+1F_SW(config-if)#ip address 1.1.40.1 255.255.255.0
+1F_SW(config-if)#line vty 0 4
+1F_SW(config-line)#password tel
+1F_SW(config-line)#login
+1F_SW(config-line)#exit
+// Trunk config
+1F_SW(config)#int f 0/24
+1F_SW(config-if)#switchport mode trunk
+1F_SW(config-if)#switchport trunk allowed vlan 10,20,30,40
+1F_SW(config-if)#int f 0/1
+1F_SW(config-if)#switchport mode access
+1F_SW(config-if)#switchport access vlan 10
+1F_SW(config-if)#int f 0/2
+1F_SW(config-if)#switchport mode access
+1F_SW(config-if)#switchport access vlan 20
+1F_SW(config-if)#int f 0/3
+1F_SW(config-if)#switchport mode access
+1F_SW(config-if)#switchport access vlan 30
+1F_SW(config-if)#end
+1F_SW#copy running-config startup-config
+
+
+Switch2>en
+Switch#conf t
+Switch(config)#hostname 2F_SW
+2F_SW(config)#vlan 10
+2F_SW(config-vlan)#name Student
+2F_SW(config-vlan)#vlan 20
+2F_SW(config-vlan)#name Office
+2F_SW(config-vlan)#vlan 30
+2F_SW(config-vlan)#name Professor
+2F_SW(config-vlan)#vlan 40
+2F_SW(config-vlan)#name Admin
+2F_SW(config-vlan)#int vlan 40
+2F_SW(config-if)#ip address 1.1.40.2 255.255.255.0
+2F_SW(config-if)#line vty 0 4
+2F_SW(config-line)#password tel
+2F_SW(config-line)#login
+2F_SW(config-line)#exit
+2F_SW(config)#int f 0/24
+2F_SW(config-if)#switchport mode trunk
+2F_SW(config-if)#switchport trunk allowed vlan 10,20,30,40
+2F_SW(config-if)#int f 0/1
+2F_SW(config-if)#switchport mode access
+2F_SW(config-if)#switchport access vlan 10
+2F_SW(config-if)#int f 0/2
+2F_SW(config-if)#switchport mode access
+2F_SW(config-if)#switchport access vlan 20
+2F_SW(config-if)#int f 0/3
+2F_SW(config-if)#switchport mode access
+2F_SW(config-if)#switchport access vlan 30
+2F_SW(config-if)#end
+2F_SW#copy running-config startup-config
+
+
+Switch3>en
+Switch#conf t
+Switch(config)#hostname 3F_SW
+3F_SW(config)#vlan 10
+3F_SW(config-vlan)#name Student
+3F_SW(config-vlan)#vlan 20
+3F_SW(config-vlan)#name Office
+3F_SW(config-vlan)#vlan 30
+3F_SW(config-vlan)#name Professor
+3F_SW(config-vlan)#vlan 40
+3F_SW(config-vlan)#name Admin
+3F_SW(config-vlan)#int vlan 40
+3F_SW(config-if)#ip address 1.1.40.2 255.255.255.0
+3F_SW(config-if)#line vty 0 4
+3F_SW(config-line)#password tel
+3F_SW(config-line)#login
+3F_SW(config-line)#exit
+3F_SW(config)#int f 0/24
+3F_SW(config-if)#switchport mode trunk
+3F_SW(config-if)#switchport trunk allowed vlan 10,20,30,40
+3F_SW(config-if)#int f 0/1
+3F_SW(config-if)#switchport mode access
+3F_SW(config-if)#switchport access vlan 10
+3F_SW(config-if)#int f 0/2
+3F_SW(config-if)#switchport mode access
+3F_SW(config-if)#switchport access vlan 20
+3F_SW(config-if)#int f 0/3
+3F_SW(config-if)#switchport mode access
+3F_SW(config-if)#switchport access vlan 30
+3F_SW(config-if)#int f 0/4
+3F_SW(config-if)#switchport mode access
+3F_SW(config-if)#switchport access vlan 40
+3F_SW(config-if)#end
+3F_SW#copy running-config startup-config
+
+
+
+// Backbone Switch config
+Switch0>en
+Switch0#conf t
+Switch(config)#hostname BB
+// VLAN config
+BB(config)#vlan 10
+BB(config-vlan)#name Student
+BB(config-vlan)#vlan 20
+BB(config-vlan)#name Office
+BB(config-vlan)#vlan 30
+BB(config-vlan)#name Professor
+BB(config-vlan)#vlan 40
+BB(config-vlan)#name Admin
+// Trunk config
+BB(config-vlan)#int f 0/24
+BB(config-if)#switchport mode trunk
+BB(config-if)#switchport trunk allowed vlan 10,20,30,40
+BB(config-if)#switchport trunk native vlan 10
+// cannot transport DTP
+BB(config-if)#switchport nonegotiate
+BB(config-if)#end
+BB#copy running-config startup-config
+
+
+
+// L3 Switch config
+Switch>en
+Switch#conf t
+// VLAN config
+Switch(config)#vlan 10
+Switch(config-vlan)#name Student
+Switch(config-vlan)#vlan 20
+Switch(config-vlan)#name Office
+Switch(config-vlan)#vlan 30
+Switch(config-vlan)#name Professor
+Switch(config-vlan)#vlan 40
+Switch(config-vlan)#name Admin
+Switch(config-vlan)#exit
+// Trunk config
+Switch(config)#int f 0/24
+Switch(config-if)#switchport mode trunk
+Switch(config-if)#switchport trunk allowed vlan 10,20,30,40
+Switch(config-if)#switchport trunk encapsulation dot1q
+Switch(config-if)#switchport trunk native vlan 10
+// Cannot Transport DTP
+Switch(config-if)#switchport nonegotiate
+Switch(config-if)#exit
+// input IP
+Switch(config)#int vlan 10
+Switch(config-if)#ip address 1.1.10.254 255.255.255.0
+Switch(config-if)#int vlan 20
+Switch(config-if)#ip address 1.1.20.254 255.255.255.0
+Switch(config-if)#int vlan 30
+Switch(config-if)#ip address 1.1.30.254 255.255.255.0
+Switch(config-if)#int vlan 40
+Switch(config-if)#ip address 1.1.40.254 255.255.255.0
+Switch(config-if)#exit
+// active routing
+Switch(config)#ip routing
+// setup telnet
+Switch(config)#int vlan 40
+Switch(config-if)#line vty 0 4
+Switch(config-line)#password tel
+Switch(config-line)#login
+Switch(config-line)#end
+Switch#copy running-config startup-config
+
+/*
+  이 네트워크에서는 InterVLAN 을 적용한 Router Network 와 같은 작업을 하게 하는 네트워크를 Router대신에 L3 Switch 를 가지고
+  구현해 보았다.
+  
+  Router 에서는 가상 인터페이스를 f0/0.10 과 같이 적용 시키고, encapsulation dot1q 10 을 한 상태에서 ip를 설정 하였다.
+  L3 에서는 Trunk 를 사용하는 인터페이스 자체에 encapsulation dot1q 를 적용하고, 사용할 vlan 을 지정하고, vlan 마다 ip 를 사용하게 했다.
+ 
+  작업을 하는 과정에서 통신이 안되는 문제가 있었는데, backbone Switch의 trunk vlan 을 40만 적용하면 통신이 안되는걸 확인하고, 10,20,30,40으로
+  적용하였더니 통신이 되었다.
+  
+  이로인해, 관련된 모든 Switch 의 Trunk Port 는 모든 vlan 을 allowed 로 적용 시켜야 된다는 점을 알 수 있었다.
+  
+  아직 확실하게 알지 못한 내용으로는
+  switchport nonegotiate 인데, 검색을 해보면, DTP 를 전송하지 않기위해 적용하는 명령어라고 하는데,
+  backbone, L3 Switch 에 만 적용하였다. 왜 이 2개의 Switch 에는 적용을 하면 안되는지 알아야 할 것 같다.
+*/
