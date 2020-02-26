@@ -1,4 +1,6 @@
 /*
+  SVI : Switched Virtual Interface
+  
   L3 Switch 를 사용하여, VLAN 을 적용시킨 네트워크를 구축하고자 한다.
   L2 Switch 로는 Backbone Switch 를 하나 사용했고, Backbone Switch 에서는 L3 Switch 와 L2 Switch 를 연결해주는 역할을 맡는다.
   VLAN 그룹으로는 총 4개의 그룹(학생, 직원, 교수, 관리자)를 설정 하였다.
