@@ -1,0 +1,60 @@
+/*
+  L3Switch 를 가지고 기본적인 Static routing 을 적용하여 통신을 시도한다.
+  
+  설정
+  Net1 : 210.100.10.0/24, L3SW1 f0/1(default gateway): 210.100.10.254
+  Net2 : 210.100.20.0/24, L3SW1 f0/1(default gateway): 210.100.20.254
+  Serial : 210.100.100.0/30
+  
+*/
+Switch>en
+Switch#conf t
+Switch(config)#hostname L3SW1
+L3SW1(config)#int f 0/1
+// L3 Switch 로 전환 한다.
+L3SW1(config-if)#no switchport
+L3SW1(config-if)#ip address 210.100.10.254 255.255.255.0
+L3SW1(config-if)#int f0/2
+L3SW1(config-if)#no switchport
+L3SW1(config-if)#ip address 210.100.100.1 255.255.255.252
+L3SW1(config-if)#exit
+L3SW1(config)#ip route 210.100.20.0 255.255.255.0 210.100.100.2
+// 라우팅 기능을 사용하기 위해서는 ip routing 을 enable 시켜야 활성화 된다.
+L3SW1(config)#ip routing
+L3SW1(config)#exit
+L3SW1#copy running-config startup-config
+
+
+Switch>en
+Switch#conf t
+Switch(config)#hostname L3SW2
+L3SW2(config)#int f 0/1
+L3SW2(config-if)#no switchport
+L3SW2(config-if)#ip address 210.100.20.254 255.255.255.0
+L3SW2(config-if)#int f0/2
+L3SW2(config-if)#no switchport
+L3SW2(config-if)#ip address 210.100.100.2 255.255.255.252
+L3SW2(config-if)#exit
+L3SW2(config)#ip route 210.100.10.0 255.255.255.0 210.100.100.1
+L3SW2(config)#ip routing
+L3SW2(config)#exit
+L3SW2#copy running-config startup-config
+
+/*
+PC0 IP configutation
+IP address : 210.100.10.10
+Subnet Mask : 255.255.255.0
+Default Gateway : 210.100.10.254
+*/
+
+PC0>ping 210.100.20.254
+-> Ping statistics for 210.100.20.254: Packets: Sent = 4, Received = 4, Lost = 0 (0% loss)
+
+/*
+  적용시 주의해야 할 점.
+  ip route 를 L3 에서 설정을 하였다 하더라도, ip routing 을 enable 시키지 않으면, 라우팅 기능이 작동하지 않는다.
+  즉, L3 Static Routing 을 통한 통신이 작동이 안되어버리는 문제가 발생한다.
+  
+  위의 코드는 L3Switch 를 사용 해서 Static Routing 을 적용시키는 과정에서 L2Switch는 설정을 아무것도 건드리지 않은 상태이다.
+  L2Switch 를 외부에서 통신을 하려고 한다면, Default-Gateway를 설정을 해주어야 통신이 가능하다.
+*/
