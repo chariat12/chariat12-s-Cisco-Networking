@@ -207,4 +207,15 @@ Switch#copy running-config startup-config
   아직 확실하게 알지 못한 내용으로는
   switchport nonegotiate 인데, 검색을 해보면, DTP 를 전송하지 않기위해 적용하는 명령어라고 하는데,
   backbone, L3 Switch 에 만 적용하였다. 왜 이 2개의 Switch 에는 적용을 하면 안되는지 알아야 할 것 같다.
+  
+  
+  // 출처 https://okay19.tistory.com/127
+  switchport nonegotiate:
+  - Trunk mode 일때 상대에서 DTP 패킷을 전송하지 않게 하는 옵션
+  - 상대측 포트도반드시 Trunk mode 로 설정해야만 Trunk로 동작한다.
+  - Switch(config-if)#switchport mode trunk
+  - Switch(config-if)#switchport nonegotiate
+  
+  - nonegotiate 와 dynamic 옵션을 동시에 사용할 수 없다.
+  -> error : Command rehected: Conflict between 'nonegotiate' and 'dynamic' status
 */
