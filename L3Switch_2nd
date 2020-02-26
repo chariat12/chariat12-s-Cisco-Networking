@@ -100,7 +100,7 @@ Switch(config)#hostname 3F_SW
 3F_SW(config-vlan)#vlan 40
 3F_SW(config-vlan)#name Admin
 3F_SW(config-vlan)#int vlan 40
-3F_SW(config-if)#ip address 1.1.40.2 255.255.255.0
+3F_SW(config-if)#ip address 1.1.40.3 255.255.255.0
 3F_SW(config-if)#line vty 0 4
 3F_SW(config-line)#password tel
 3F_SW(config-line)#login
