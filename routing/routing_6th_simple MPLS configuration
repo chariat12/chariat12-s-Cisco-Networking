@@ -1,2 +1,212 @@
-## 가장 간단한 Cisco MPLS Topology 를 설정 하고 구현해 보았다.
-## 작업 단계
+## 가장 간단한 Cisco MPLS Topology 를 설정 하고 구현해 보았다. ##
+##
+## MPLS토폴로지 구성
+## 3 개의 router MPLS Core + PEPF CE routing & OSPF 를 실행하는 동일한 VRF 로 구성한다.
+##
+## 작업 단계 설명 ##
+## step1. MPLS Core & OSPF IP Config
+## step2. MPLS Core 의 모든 interface 에서 LDP 설정
+## step3. R1-R3 간의 MPLS BGP 구성
+## step4. 양옆에 라우터를 1개씩 추가하고 VRF 를 생성
+##
+## 참조 링크 : https://www.rogerperkin.co.uk/ccie/mpls/cisco-mpls-tutorial/
+
+## step1. MPLS Core & OSPF IP config
+[R1]
+hostname R1
+int lo0
+ip add 1.1.1.1 255.255.255.255
+ip ospf 1 area 0
+
+int f0/0
+ip add 10.0.0.1 255.255.255.0
+no shut
+ip ospf 1 area 0
+
+[R2]
+hostname R2
+int lo0
+ip add 2.2.2.2 255.255.255.255
+ip ospf 1 area 0
+
+int f 0/0
+ip add 10.0.0.2 255.255.255.0
+no shot
+ip ospf 1 area 0
+
+int f 0/1
+ip add 10.0.1.2 255.255.255.0
+no shut
+ip ospf 1 area 0
+
+[R3]
+hostname R3
+int lo0
+ip add 3.3.3.3 255.255.255.255
+ip ospf 1 area 0
+
+int f 0/0
+ip add 10.0.1.3 255.255.255.0
+no shut
+ip ospf 1 area 0
+
+## 확인 : R1,R2,R3 가 설정이 정상적으로 되면, R1-R3 loopback 간의 ping 이 가능하다.
+R1#ping 3.3.3.3 source lo0 // ping 1.1.1.1 -> 3.3.3.3
+
+
+## step2. MPLS Core 의 모든 interface 에서 LDP 설정
+## MPLS 실행하려면 MPLS 활성화를 해야하는데 2가지 방법이 있다.
+## 1. 각 인터페이스 에서 mpls ip 명령어를 입력한다
+## 2. ospf process 에서 mpls ldp autoconfig 명령어를 사용한다.  <-- 이 방법을 사용한다.
+
+[R1]
+router ospf 1
+mpls ldp autoconfig
+
+[R2]
+router ospf 1
+mpls ldp autoconfig
+
+[R3]
+router ospf 1
+mpls ldp autoconfig
+
+## LDP neighbor 가 작동 중임을 알려주는 LOG 가 뜬다.
+*Mar  1 00:31:54.423: %LDP-5-NBRCHG: LDP Neighbor 1.1.1.1:0 (1) is UP
+*Mar  1 00:36:09.951: %LDP-5-NBRCHG: LDP Neighbor 3.3.3.3:0 (2) is UP
+
+## mpls 인터페이스를 확인하는 명령어 - sh mpls interface
+R2#sh mpls interface
+Interface              IP            Tunnel   Operational
+FastEthernet0/0        Yes (ldp)     No       Yes
+FastEthernet0/1        Yes (ldp)     No       Yes
+
+## LDP neighbor 확인 명령어 - sh mpls ldp neighbors
+## LDP 가 정상적으로 실행되는지 확인 하는 방법은 R1-R3 trace 를 해보고, MPLS label 이 표시 되는지 확인
+R1#trace 3.3.3.3
+
+Type escape sequence to abort.
+Tracing the route to 3.3.3.3
+
+  1 10.0.0.2 [MPLS: Label 17 Exp 0] 84 msec 72 msec 44 msec // Label 이 확인 된다.
+  2 10.0.1.3 68 msec 60 msec *
+  
+
+## step3. R1-R3 간의 MPLS BGP 구성
+## L3VPN 이 작동하는 시점
+## R1-R3 사이에 BGP Session 을 설정해야 한다.
+[R1]
+router bgp 1
+enighbor 3.3.3.3 remote-as 1
+neighbor 3.3.3.3 update-source loopback0
+no auto-summary
+address-family vpnv4
+neighbor 3.3.3.3 activate
+
+[R3]
+router bgp 1
+enighbor 1.1.1.1 remote-as 1
+neighbor 1.1.1.1 update-source loopback0
+no auto-summary
+address-family vpnv4
+neighbor 1.1.1.1 activate
+
+## BGP session 에 의해 다음 과 같은 Log 메세지를 보여준다.
+*Mar  1 00:45:01.047: %BGP-5-ADJCHANGE: neighbor 1.1.1.1 Up
+
+## R1, R3 간의 BGP 세션을 확인 하는 명령어 - sh bgp vpnv4 unicast all summary
+R1#sh bgp vpnv4 unicast all summary
+BGP router identifier 1.1.1.1, local AS number 1
+BGP table version is 1, main routing table version 1
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+3.3.3.3         4     1     218     218        1    0    0 03:17:48        0
+
+## R3에 bgp vpnv4 pear가 있음을 확인 가능 하다. PfxRcd 가 0 인 것은, BGP에 경로가 없기 때문이다.
+## 여기에 R1, R3 에 라우터를 2개 더 추가 하는데 이는 R1 & R3 에 연결된 고객 사이트를 의미한다.
+## 각 라우터에 VRF 를 만들고 각 사이트 라우터에 연결된 인터페이스를 VRF 에 넣는다.
+
+
+## step4. 양옆에 라우터를 1개씩 추가하고 VRF 를 생성
+
+[R4] // pid 2 를 사용한 ospf 를 R1에 구성된 VRF 로 pearing 한다. 로컬사이트는 192.168.1.0/24를 사용한다.
+hostname R4
+int lo0
+ip add 4.4.4.4 255.255.255.255
+ip ospf 2 area 2
+int f 0/0
+ip add 192.168.1.4 255.255.255.0
+ip ospf 2 area 2
+no shut
+
+[R1]
+int f 0/1
+no shut
+ip add 192.168.1.1 255.255.255.0
+
+## 여기까지 입력하면 R4 는 R1 을 pearing 하지만 R1의 routing table 에는 원하는 것이 안들어 있다.
+## 이제부터 VRF 를 사용한다.
+## VRF(Virtual Routing and Forwarding) : rounting table 의 여러 인스턴스가 router 에 존재하고 함께 작동하지만, 서로
+## 간섭하지 않도록 하는 IP 에 포함된 기술이다. 이는 네트워크 경로를 허용하며 기능을 향상 시키고, 여러 장치를 사용하지 않고 세그먼트화 가능하다.
+## EX)R1 : ISP 의 PE Provider Edge Router 이고 두 고객이 192.168.1.0/24 공간으로 로컬 주소 지정하면, 서로 다른 VRF 라우팅 테이블ㅇㄹ 모두 수용 가능하다.
+## 토폴로지로 돌아가서, R1에 VRF를 만들 필요가 있고, 이 mpls 구성에는 VRF RED 를 사용한다.
+
+[R1]
+ip vrf RED
+rd 4:4
+route-target both 4:4
+// rd와 route-target 은 같을 필요가 없다.
+// 참조 주소 : https://www.rogerperkin.co.uk/ccie/mpls/route-distinguisher-vs-route-target/
+## R1 에서 VRF 를 구성 했으며, interface 0/1 을 해당 VRF 로 이동시킨다.
+[R1]
+int f 0/1
+ip vrf forwarfing RED
+
+## ip vrf Forwarding RED 확성화로 인해 IP 주소가 제거가 되었는데, 다시 IP를 적용 시키면 된다.
+R1(config-if)#ip vrf forwarding RED
+% Interface FastEthernet0/1 IP address 192.168.1.1 removed due to enabling VRF RED
+##
+
+[R1]
+int f 0/1
+ip add 192.168.1.1 255.255.255.0
+
+## R1에서 sh run int f 0/1 를 입력 해보고 정상적으로 적용이 되었는지 확인해 보자.
+R1#sh run int f0/1
+Building configuration...
+
+Current configuration : 119 bytes
+!
+interface FastEthernet0/1
+ ip vrf forwarding RED
+ ip address 192.168.1.1 255.255.255.0
+ duplex auto
+ speed auto
+end
+
+## int VRF 와 작동 방식을 살펴본다.
+## R1 내에는 2개의 routing table 이 있음을 알아야 한다.
+## 1. global routing table
+## 2. VRF RED routing table
+## sh ip route 명령을 실행하면 global routing table 이 표시되고, 192.168.1.0/24 가 보이지 않음을 알수 있다.
+R1#sh ip route
+
+1.0.0.0/32 is subnetted, 1 subnets
+C 1.1.1.1 is directly connected, Loopback0
+ 2.0.0.0/32 is subnetted, 1 subnets
+O 2.2.2.2 [110/11] via 10.0.0.2, 01:03:48, FastEthernet0/0
+ 3.0.0.0/32 is subnetted, 1 subnets
+O 3.3.3.3 [110/21] via 10.0.0.2, 01:02:29, FastEthernet0/0
+ 10.0.0.0/24 is subnetted, 2 subnets
+C 10.0.0.0 is directly connected, FastEthernet0/0
+O 10.0.1.0 [110/20] via 10.0.0.2, 01:02:39, FastEthernet0/0
+
+## sh ip route vrf RED 명령을 실행 하면 RED table 을 확인 가능하다. (RED는 대소문자 구분한다.)
+R1#sh ip route vrf RED
+
+Routing Table: RED
+Gateway of last resort is not set
+
+C 192.168.1.0/24 is directly connected, FastEthernet0/1
+
+
