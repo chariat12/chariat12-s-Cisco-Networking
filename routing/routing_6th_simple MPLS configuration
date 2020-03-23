@@ -24,6 +24,7 @@
 ## MPLS는 다중 프로토콜 환경에서 작동하도록 설계 되어있다.
 ## MPLS는 metro ethernet service 와 mobile communications back-haul 을 지원하는 데 사용 된다.
 ## 주요 이점은 prefix가 아닌 label 을 사용하여 라우팅 할 때 똑같은 address space 를 두 client 가 사용 할 수 있다는 점이다.
+<https://github.com/chariat12/chariat12-s-Cisco-Networking/blob/master/routing/routing_6th_simple%20MPLS%20configuration.png?raw=true
 
 ## step1. MPLS Core & OSPF IP config
 [R1]
