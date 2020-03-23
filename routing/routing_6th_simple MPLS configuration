@@ -425,3 +425,90 @@ Tracing the route to 6.6.6.6
  3 192.168.2.1 [MPLS: Label 20 Exp 0] 16 msec 40 msec 16 msec
  4 192.168.2.6 44 msec 40 msec 56 msec
  
+
+## MPLS TroubleShooting ##
+## link : https://www.rogerperkin.co.uk/ccie/mpls/mpls-ldp-troubleshooting/
+1. First establish IGP connectivity between all the routers. 
+2. Can you ping all the loopbacks?
+3. Are there /32 loopbacks configured on every router and advertised into IGP?
+4. Is CEF enabled?
+5. Is MPLS IP enabled on the required interfaces?
+6. Have the routers discovered any LDP neighbors?
+
+## command lists
+sh run | inc ip cef
+sh run | inc mpls ip
+sh mpls interface
+sh mpls ldp disco
+sh mpls ldp neigh
+
+## sample result
+R21#sh run | inc mpls ip
+ mpls ip
+ mpls ip
+ mpls ip
+ mpls ip
+ R21#sh run | inc ip cef
+ ip cef
+ R21#sh run | inc mpls ip
+ R21#sh mpls interface            // MPLS interface 가 정상인지?
+ Interface IP Tunnel Operational
+ FastEthernet0/0 Yes (ldp) No Yes
+ FastEthernet0/1 Yes (ldp) No Yes
+ FastEthernet1/0 Yes (ldp) No Yes
+ FastEthernet2/0 Yes (ldp) No Yes
+ R21#sh mpls ldp neigh            // MPLS LDP 가 잘 광고 되고 있는지?
+ Peer LDP Ident: 22.22.22.22:0; Local LDP Ident 21.21.21.21:0
+ TCP connection: 22.22.22.22.24740 - 21.21.21.21.646
+ State: Oper; Msgs sent/rcvd: 294/292; Downstream
+ Up time: 04:02:51
+ LDP discovery sources:
+ FastEthernet0/1, Src IP addr: 172.16.1.2
+ Addresses bound to peer LDP Ident:
+ 172.16.1.0 172.16.1.2 22.22.22.22
+ Peer LDP Ident: 172.16.1.9:0; Local LDP Ident 21.21.21.21:0
+ TCP connection: 172.16.1.9.51621 - 21.21.21.21.646
+ State: Oper; Msgs sent/rcvd: 210/213; Downstream
+ Up time: 02:48:22
+ LDP discovery sources:
+ FastEthernet1/0, Src IP addr: 172.16.1.9
+ Addresses bound to peer LDP Ident:
+ 172.16.1.9 24.24.24.24 172.16.1.10
+ Peer LDP Ident: 26.26.26.26:0; Local LDP Ident 21.21.21.21:0
+ TCP connection: 26.26.26.26.43548 - 21.21.21.21.646
+ State: Oper; Msgs sent/rcvd: 118/119; Downstream
+ Up time: 01:27:44
+ LDP discovery sources:
+ FastEthernet2/0, Src IP addr: 172.16.1.15
+ Addresses bound to peer LDP Ident:
+ 172.16.1.15 26.26.26.26 172.16.1.13
+ Peer LDP Ident: 23.23.23.23:0; Local LDP Ident 21.21.21.21:0
+ TCP connection: 23.23.23.23.62234 - 21.21.21.21.646
+ State: Oper; Msgs sent/rcvd: 28/28; Downstream
+ Up time: 00:11:03
+ LDP discovery sources:
+ FastEthernet0/0, Src IP addr: 172.16.1.4
+ Addresses bound to peer LDP Ident:
+ 172.16.1.4 23.23.23.23 172.16.1.6
+ R21#sh run | inc ip cef
+ ip cef
+ R21#sh run | inc mpls ip
+ R21#sh mpls interface
+ Interface IP Tunnel Operational
+ FastEthernet0/0 Yes (ldp) No Yes
+ FastEthernet0/1 Yes (ldp) No Yes
+ FastEthernet1/0 Yes (ldp) No Yes
+ FastEthernet2/0 Yes (ldp) No Yes
+ R21#sh mpls ldp disco        // ldp discovery source 확인
+ Local LDP Identifier:
+ 21.21.21.21:0
+ Discovery Sources:
+ Interfaces:
+ FastEthernet0/0 (ldp): xmit/recv
+ LDP Id: 23.23.23.23:0
+ FastEthernet0/1 (ldp): xmit/recv
+ LDP Id: 22.22.22.22:0
+ FastEthernet1/0 (ldp): xmit/recv
+ LDP Id: 172.16.1.9:0; no host route
+ FastEthernet2/0 (ldp): xmit/recv
+ LDP Id: 26.26.26.26:0
