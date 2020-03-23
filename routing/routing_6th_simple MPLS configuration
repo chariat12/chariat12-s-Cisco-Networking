@@ -10,6 +10,20 @@
 ## step4. 양옆에 라우터를 1개씩 추가하고 VRF 를 생성
 ##
 ## 참조 링크 : https://www.rogerperkin.co.uk/ccie/mpls/cisco-mpls-tutorial/
+##
+## MPLS Network 란?
+## MPLS (Multiprotocol Label Switching) : 통신 네트워크에 트래픽을 라우팅 하여 긴 네트워크 주소가 아닌 하나의
+## 노드에서 다음 기반 경로 레이블로 데이터를 전달 하는 방법이며, 클라이언트가 레이블인 그대로의 주소 공간을 공유 할 수 있다.
+## prefix를 사용 하지 않고도 라우팅 된다.
+## 
+## MPLS 는 routing protocol 인가?
+## MPLS는 ISP network 를 통해 network routing 하는 방법이고, OSPF 및 BGP 같은 routing protocol 을 사용하여 MPLS 가 작동된다.
+## MPLS 는 BGP 를 사용하여 작동 하며, 일반적으로 OSPF를 사용하여 고객과 경로를 교환한다.
+## 
+## MPLS 가 사용되는 이유는?
+## MPLS는 다중 프로토콜 환경에서 작동하도록 설계 되어있다.
+## MPLS는 metro ethernet service 와 mobile communications back-haul 을 지원하는 데 사용 된다.
+## 주요 이점은 prefix가 아닌 label 을 사용하여 라우팅 할 때 똑같은 address space 를 두 client 가 사용 할 수 있다는 점이다.
 
 ## step1. MPLS Core & OSPF IP config
 [R1]
@@ -209,4 +223,203 @@ Gateway of last resort is not set
 
 C 192.168.1.0/24 is directly connected, FastEthernet0/1
 
+## 작업을 계속 하기전에 VRF RED routing table 에 있는 R4의 loopback 주소를 ospf 에 적용 합니다
+[R1]
+int f 0/1
+ip ospf 2 area 2
 
+## OSPF neighbor 가 작동됨을 알리는 로그메세지를 볼 수 있을 것이다.
+ *Mar 1 01:12:54.323: %OSPF-5-ADJCHG: Process 2, Nbr 4.4.4.4 
+on FastEthernet0/1 from LOADING to FULL, Loading Done
+
+## 다시 VRF RED routing table 을 체크 해 보면 4.4.4.4 이 잘 적용 됨을 볼 수 있다.
+R1#sh ip route vrf RED
+
+Routing Table: RED
+Gateway of last resort is not set
+
+4.0.0.0/32 is subnetted, 1 subnets
+ O 4.4.4.4 [110/11] via 192.168.1.4, 00:00:22, FastEthernet0/1 // <- 새로 적용 됨
+ C 192.168.1.0/24 is directly connected, FastEthernet0/1
+ 
+## R1 & R4 처럼 적용한 설정을 R3 & R6 에도 적용 시키는 과정을 하면 된다.
+## R6은 R3에 VRF설정된 process number 2의 OSPF 를 사용하며, local site 주소는 192.168.2.0/24 이다.
+[R6]
+hostname R6
+int lo0
+ip add 6.6.6.6 255.255.255.255
+ip ospf 2 area 2
+int f 0/0
+ip add 192.168.2.6 255.255.255.0
+ip ospf 2 area 2
+no shut
+
+[R3]
+int f 0/1
+no shut
+ip add 192.168.2.3 255.255.255.0
+
+## R3 에 VRF 설정을 해준다.
+[R3]
+ip vrf RED
+rd 4:4
+route-target both 4:4
+
+## int f 0/1 에 R3 에 설정된 VRF 를 이동 할 수 있게 해준다.
+[R3]
+int f 0/1
+ip vrf forwarding RED
+
+## RED 가 적용 되면 입력된 IP 가 지워지는 것을 확인 할 수 있다.
+% Interface FastEthernet0/1 IP address 192.168.2.1 removed due to enabling VRF RED
+
+## IP 가 지워 졌다면, 다시 IP를 적용 시켜준다.
+[R3]
+int f 0/1
+ip address 192.168.2.1 255.255.255.0
+
+## VRF 가 R3 의 인터페이스에 적용이 잘 되었는지 확인 해 본다.
+[R3]
+R3#sh run int f0/1
+Building configuration...
+
+Current configuration : 119 bytes
+!
+interface FastEthernet0/1
+ip vrf forwarding RED
+ip address 192.168.2.1 255.255.255.0
+duplex auto
+speed auto
+end
+
+## 마지막으로 해당 인터페이스에서 OSPF 를 활성하 하고 경로가 RED routing table 에 있는지 확인을 한다.
+[R3]
+int f 0/1
+ip ospf 2 area 2
+
+## 경로 확인
+R3#sh ip route vrf RED
+
+Routing Table: RED
+Codes: C - connected, S - static, R - RIP, M - mobile, B - BGP
+
+Gateway of last resort is not set
+
+     6.0.0.0/32 is subnetted, 1 subnets
+O       6.6.6.6 [110/11] via 192.168.2.6, 00:02:44, FastEthernet0/1 // R3-R6이 잘 적용 됨을 보인다.
+C    192.168.2.0/24 is directly connected, FastEthernet0/1
+
+
+
+
+
+
+## 여기까지의 상황을 다음과 같이 표현 할 수 있다.
+## [R4: lo] - [R1: lo - R2: lo - R3: lo] - [R6 :lo]
+## OSPF a 2 - OSPF area 0 (MPLS Core)    - OSPF a 2
+R1,R2,R3 는 MPLS Core 를 형성하고, /32 주소를 실행하는 모든 loopback 과 함께 전체 연결을 가진 OSPF 를 실행
+R1-R3 는 MP-BGP 와 pearing 중 이다. LDP 는 모든 인터페이스에서 활성화 된다.
+MPLS 코어의 외부 인터페이스가 RED 라는 VRF 에 배치 되고, 사이트 라우터가 MPLS Core 의 각 측면에서 각 VRF 에 연결된다
+
+MPLS 코어를 통한 완전한 연결을 위한 마지막 단계는 R1 및 R3 의 OSPF 경로를 MP-BGP로, MP-BGP를 OSPF 로 재분배 한다.
+
+Redistribute OSPF into MP-BGP on R1
+Redistribute OSPF into MP-BGP on R3
+R1 MP-BGP -> OSPF route
+R3 MP-BGP -> OSPF route
+
+## Redistribute OSPF into MP-BGP on R1
+[R1]
+router bgp 1
+address-family ipv4 vrf RED
+redistribute ospf 2
+
+## Redistribute OSPF into MP-BGP on R3
+[R3]
+router bgp 1
+address-family ipv4 vrf RED
+redistribute ospf 2
+
+## BGP 에 OSPF route 가 재분배 가 적용되었다. 이후로 R4 & R6 의 경로가 BGP table 에 VRF 이 표시되는지 확인 가능하다.
+R1#sh ip bgp vpnv4 vrf RED
+BGP table version is 9, local router ID is 1.1.1.1
+Status codes: s suppressed, d damped, h history, * valid, > best, 
+ r RIB-failure, S Stale
+Origin codes: i - IGP, e - EGP, ? - incomplete
+
+ Network Next Hop Metric LocPrf Weight Path
+Route Distinguisher: 4:4 (default for vrf RED)
+*> 4.4.4.4/32 192.168.1.4 11 32768 ?  // R4, next hop : 192.168.1.4
+*>i6.6.6.6/32 3.3.3.3 11 100 0 ?      // R6, next hop : 3.3.3.3
+*> 192.168.1.0 0.0.0.0 0 32768 ?
+*>i192.168.2.0 3.3.3.3 0 100 0 ?
+
+-> R1 이 없음을 보여준다.
+
+## R3에서 확인하면 다음과 같다.
+R3#sh ip bgp vpnv4 vrf RED
+BGP table version is 9, local router ID is 3.3.3.3
+Status codes: s suppressed, d damped, h history, * valid, > best, i - internal,
+r RIB-failure, S Stale
+Origin codes: i - IGP, e - EGP, ? - incomplete
+
+Network Next Hop Metric LocPrf Weight Path
+Route Distinguisher: 4:4 (default for vrf RED)
+*>i4.4.4.4/32 1.1.1.1 11 100 0 ?      // R4, next hop : 1.1.1.1
+*> 6.6.6.6/32 192.168.2.6 11 32768 ?  // R6, next hop : 192.168.2.6
+*>i192.168.1.0 1.1.1.1 0 100 0 ?
+*> 192.168.2.0 0.0.0.0 0 32768 ?
+
+-> R2가 없음을 보여준다.
+
+
+## 마지막 단계는 MPLS 를 통과 한 경로를 OSPF 로 가져오고 end-to-end connect 를 얻는 과정이다.
+[R1]
+router ospf 2
+redistribute bgp 1 subnets
+
+[R3]
+router ospf 2
+redistribute bgp 1 subnets
+
+## R4 -> 6.6.6.6 으로 ping이 가는지 확인한다.
+R4#sh ip route 
+
+
+4.0.0.0/32 is subnetted, 1 subnets
+C 4.4.4.4 is directly connected, Loopback0
+ 6.0.0.0/32 is subnetted, 1 subnets
+O IA 6.6.6.6 [110/21] via 192.168.1.1, 00:01:31, FastEthernet0/0 // R4->6.6.6.6 확인 가능
+C 192.168.1.0/24 is directly connected, FastEthernet0/0
+O E2 192.168.2.0/24 [110/1] via 192.168.1.1, 00:01:31, FastEthernet0/0
+
+
+R6#sh ip route
+
+4.0.0.0/32 is subnetted, 1 subnets
+O IA 4.4.4.4 [110/21] via 192.168.2.1, 00:01:22, FastEthernet0/0 // R6->4.4.4.4 확인 가능
+6.0.0.0/32 is subnetted, 1 subnets
+C 6.6.6.6 is directly connected, Loopback0
+O IA 192.168.1.0/24 [110/11] via 192.168.2.1,00:01:22,FastEthernet0/0
+C 192.168.2.0/24 is directly connected, FastEthernet0/0
+
+
+R4#ping 6.6.6.6 // ping R4 -> 6.6.6.6 체크
+
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 6.6.6.6, timeout is 2 seconds:
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max= 40/48/52ms
+
+
+## MPLS를 사용하여 전송 되고 있고, Lable 이 전환되어 routing 되지 않았음을 확인 할 수 있다.
+R4#trace 6.6.6.6
+
+Type escape sequence to abort.
+Tracing the route to 6.6.6.6
+
+1 192.168.1.1 20 msec 8 msec 8 msec
+ 2 10.0.0.2 [MPLS: Labels 17/20 Exp 0] 36 msec 40 msec 36 msec
+ 3 192.168.2.1 [MPLS: Label 20 Exp 0] 16 msec 40 msec 16 msec
+ 4 192.168.2.6 44 msec 40 msec 56 msec
+ 
